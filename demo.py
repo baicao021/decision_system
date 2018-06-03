@@ -17,7 +17,7 @@ policy = Policy(
     engine=engine
 )
 policy.add_json_decode_rule(
-    JsonDecodeRule('age', '$.core_source.age', 'int')
+    JsonDecodeRule('age', '$.core_source.age', 'float')
 )
 policy.add_bi_cond_rule(
     rule=lambda **k: k['age'] >= 24,
@@ -52,5 +52,5 @@ cur_comp.add_var('reject_reason', lambda **k: ','.join(k['rules_hit']))
 cur_comp.link(OutComponent())
 
 # 9. engine call
-result = engine.run(['preCheck'], apply_json='{"core_source":{"age":"19"}}', output_var_list=['result', 'reject_reason'])
+result = engine.run(['preCheck'], apply_json='{"core_source":{"age":"2"}}', output_var_list=['result', 'reject_reason'])
 print(result)

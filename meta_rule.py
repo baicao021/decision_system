@@ -17,7 +17,7 @@ class JsonDecodeRule(object):
             if self.data_type == 'int':
                 return int(val)
             elif self.data_type == 'float':
-                return float(apply_dict)
+                return float(val)
             else:
                 return val
         else:
