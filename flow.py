@@ -1,15 +1,5 @@
-from meta_component import *
-
-
-class Flow(object):
-    def __init__(self):
-        self.head_component = None
-
-    def register_head_component(self, comp):
-        self.head_component = comp
-
-    def run(self, **kwargs):
-        return self.head_component.run(**kwargs)
+from component import *
+from meta import Flow
 
 
 class BasicFlow(Flow):
@@ -29,20 +19,21 @@ class ConditionalFlow(Flow):
 
         self.rule_comp = ConditionalComponent()
         self.var_predefine_comp.link(self.rule_comp)
+        self.out_comp = OutComponent()
 
         for cond_rule in cond_rules:
             self.add_rule(cond_rule.rule, cond_rule.var_comp)
 
-        self.out_comp = OutComponent()
-        self.default_rule = default_rule
+        self.add_default_child(default_rule.var_comp)
         self.register_head_component(self.var_predefine_comp)
 
     def add_rule(self, rule, child_var):
         self.rule_comp.add_cond_link(rule, child_var)
         child_var.link(self.out_comp)
 
-    def add_default_rule(self, child_var):
-        self.default_rule = child_var
+    def add_default_child(self, child_var):
+        self.rule_comp.default_child = child_var
+        child_var.link(self.out_comp)
 
 
 class PolicyFlow(Flow):

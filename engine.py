@@ -1,4 +1,4 @@
-from meta_flow import Flow
+from flow import Flow
 from meta_rule import Policy, ScoreRule
 import json
 

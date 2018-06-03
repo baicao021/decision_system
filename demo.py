@@ -1,10 +1,12 @@
 from meta_rule import *
 from engine import Engine
-from meta_flow import BasicFlow, PolicyFlow
-from meta_component import *
+from flow import BasicFlow, PolicyFlow
+from component import *
 
+# 1. init engine
 engine = Engine()
 
+# 2. config and register policies
 policy = Policy(
     stage='preCheck',
     rule_id='R01',
@@ -17,7 +19,7 @@ policy = Policy(
 policy.add_json_decode_rule(
     JsonDecodeRule('age', '$.core_source.age', 'int')
 )
-policy.add_bi_rule(
+policy.add_bi_cond_rule(
     rule=lambda **k: k['age'] >= 24,
     true_var_gen_rules=[],
     false_var_gen_rules=[
@@ -25,14 +27,30 @@ policy.add_bi_rule(
     ]
 )
 
+# 3. init main flow
 main_flow = BasicFlow()
-engine.register_main_flow(main_flow)
-main_flow.head_component = SubFlowComponent(PolicyFlow(engine.policy_dict['R01']), ['rules_hit'])
-result_summary_comp = VarGenComponent()
-result_summary_comp.add_var('result', lambda **k: 'Approve' if len(k['rules_hit']) == 0 else 'Reject')
-result_summary_comp.add_var('reject_reason', lambda **k: ','.join(k['rules_hit']))
-main_flow.head_component.link(result_summary_comp)
-output_comp = OutComponent()
-result_summary_comp.link(output_comp)
 
-engine.run(['preCheck'], apply_json='{"core_source":{"age":"15"}}', output_var_list=['result', 'reject_reason'])
+# 4. register main flow
+engine.register_main_flow(main_flow)
+
+# 5. config var gen component
+cur_comp = VarGenComponent()
+main_flow.head_component = cur_comp
+cur_comp.add_var('rules_hit', [])
+
+# 6. link policy
+cur_comp.link(SubFlowComponent(PolicyFlow(engine.policy_dict['R01']), ['rules_hit']))
+cur_comp = cur_comp.child_comp
+
+# 7. result summary
+cur_comp.link(VarGenComponent())
+cur_comp = cur_comp.child_comp
+cur_comp.add_var('result', lambda **k: 'Approve' if len(k['rules_hit']) == 0 else 'Reject')
+cur_comp.add_var('reject_reason', lambda **k: ','.join(k['rules_hit']))
+
+# 8. flow end
+cur_comp.link(OutComponent())
+
+# 9. engine call
+result = engine.run(['preCheck'], apply_json='{"core_source":{"age":"19"}}', output_var_list=['result', 'reject_reason'])
+print(result)

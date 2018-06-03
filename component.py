@@ -1,18 +1,4 @@
-import abc
-from abc import *
-import meta_flow
-
-
-class Component(metaclass=abc.ABCMeta):
-    def __init__(self):
-        self.child_comp = None
-
-    @abstractmethod
-    def run(self):
-        pass
-
-    def link(self, child_comp):
-        self.child_comp = child_comp
+from meta import Component, Flow
 
 
 class ConditionalComponent(Component):
@@ -26,7 +12,7 @@ class ConditionalComponent(Component):
         self.link_list.append((rule, child_comp))
         self.out_links += 1
 
-    def default_rule(self, child_comp):
+    def default_child(self, child_comp):
         self.default_child = child_comp
 
     def run(self, **kwargs):
@@ -76,7 +62,7 @@ class OutComponent(Component):
 class SubFlowComponent(Component):
     def __init__(self, flow, output_vars):
         super(SubFlowComponent, self).__init__()
-        if isinstance(flow, meta_flow.Flow):
+        if isinstance(flow, Flow):
             self.flow = flow
         else:
             raise Exception

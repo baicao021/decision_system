@@ -1,4 +1,4 @@
-from meta_component import VarGenComponent
+from component import VarGenComponent
 
 
 class JsonDecodeRule(object):
@@ -37,6 +37,12 @@ class ConditionalRule(object):
         self.var_comp = var_gen_rules_to_var_gen_comp(var_gen_rules)
 
 
+class DefaultRule(object):
+    def __init__(self, var_gen_rules):
+        self.var_gen_rules = var_gen_rules
+        self.var_comp = var_gen_rules_to_var_gen_comp(var_gen_rules)
+
+
 class Rule(object):
     def __init__(self):
         self.rule_list = []
@@ -51,9 +57,9 @@ class Rule(object):
     def add_default_rule(self, var_dict):
         self.default_rule = var_dict
 
-    def add_bi_rule(self, rule, true_var_gen_rules, false_var_gen_rules):
+    def add_bi_cond_rule(self, rule, true_var_gen_rules, false_var_gen_rules):
         self.rule_list.append(ConditionalRule(rule, true_var_gen_rules))
-        self.default_rule = false_var_gen_rules
+        self.default_rule = DefaultRule(false_var_gen_rules)
 
     def add_json_decode_rule(self, json_decode_rule):
         self.json_decode_rule_list.append(json_decode_rule)
