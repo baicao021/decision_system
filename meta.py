@@ -2,23 +2,21 @@ import abc
 from abc import *
 
 
-class Component(metaclass=abc.ABCMeta):
-    def __init__(self):
-        self.child_comp = None
-
+class MetaComponent(metaclass=abc.ABCMeta):
     @abstractmethod
-    def run(self):
+    def run(self, namespace):
         pass
 
+    @abstractmethod
     def link(self, child_comp):
-        self.child_comp = child_comp
+        pass
 
 
 class Flow(object):
     def __init__(self):
         self.head_component = None
 
-    def register_head_component(self, comp):
+    def set_start_comp(self, comp):
         self.head_component = comp
 
     def run(self, **kwargs):

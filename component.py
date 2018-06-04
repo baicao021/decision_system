@@ -1,4 +1,17 @@
-from meta import Component, Flow
+from meta import MetaComponent, Flow
+
+
+class Component(MetaComponent):
+    def __init__(self):
+        self.child_comp = None
+
+    def run(self, namespace):
+        return
+
+    def link(self, child_comp):
+        assert isinstance(child_comp, MetaComponent)
+        assert self.child_comp is None
+        self.child_comp = child_comp
 
 
 class ConditionalComponent(Component):

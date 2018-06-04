@@ -25,7 +25,7 @@ class ConditionalFlow(Flow):
             self.add_rule(cond_rule.rule, cond_rule.var_comp)
 
         self.add_default_child(default_rule.var_comp)
-        self.register_head_component(self.var_predefine_comp)
+        self.set_start_comp(self.var_predefine_comp)
 
     def add_rule(self, rule, child_var):
         self.rule_comp.add_cond_link(rule, child_var)
@@ -50,7 +50,7 @@ class PolicyFlow(Flow):
                                          self.cond_flow_comp, self.out_comp)
         self.out_comp = OutComponent()
         self.cond_flow_comp.link(self.out_comp)
-        self.register_head_component(self.router_checker)
+        self.set_start_comp(self.router_checker)
 
 
 class ScoreFlow(Flow):
@@ -60,7 +60,7 @@ class ScoreFlow(Flow):
         self.conditional_flow_comp = SubFlowComponent(conditional_flow, score_rule.output_vars_list)
         self.out_comp = OutComponent()
         self.conditional_flow_comp.link(self.out_comp)
-        self.register_head_component(self.conditional_flow_comp)
+        self.set_start_comp(self.conditional_flow_comp)
 
 
 def router_check(stage, rule_id, shunt_tuple, **kwargs):
