@@ -3,11 +3,25 @@ from meta import Flow
 
 
 class BasicFlow(Flow):
-    def __init__(self):
+    def __init__(self, input_vars=None, output_vars=None):
         super(BasicFlow, self).__init__()
+        self._input_vars = input_vars
+        self._output_vars = output_vars
+
+    def _init_start_node(self):
+        return StartComponent(self._input_vars)
+
+    def _init_end_node(self):
+        return OutComponent(self._output_vars)
+
+    def _before_run(self):
+        pass
+
+    def _after_run(self):
+        return self.end_node.namespace
 
 
-class ConditionalFlow(Flow):
+class ConditionalFlow(BasicFlow):
     def __init__(self, json_decode_rules, var_gen_rules, cond_rules, default_rule):
         super(ConditionalFlow, self).__init__()
         self.var_predefine_comp = VarGenComponent()
@@ -36,7 +50,7 @@ class ConditionalFlow(Flow):
         child_var.link(self.out_comp)
 
 
-class PolicyFlow(Flow):
+class PolicyFlow(BasicFlow):
     def __init__(self, policy):
         super(PolicyFlow, self).__init__()
         self.out_comp = OutComponent()
@@ -44,16 +58,16 @@ class PolicyFlow(Flow):
         cond_flow = ConditionalFlow(policy.json_decode_rule_list, policy.derive_var_gen_rule_list, policy.rule_list,
                                     policy.default_rule)
         self.cond_flow_comp = SubFlowComponent(cond_flow, policy.output_vars_list)
-        self.router_checker.bi_rule_link(lambda **k: router_check(stage=policy.stage,
-                                                                  rule_id=policy.rule_id,
-                                                                  shunt_tuple=policy.shunt_tuple, **k),
-                                         self.cond_flow_comp, self.out_comp)
+        self.router_checker.add_bi_rule_link(lambda **k: router_check(stage=policy.stage,
+                                                                      rule_id=policy.rule_id,
+                                                                      shunt_tuple=policy.shunt_tuple, **k),
+                                             self.cond_flow_comp, self.out_comp)
         self.out_comp = OutComponent()
         self.cond_flow_comp.link(self.out_comp)
         self.set_start_comp(self.router_checker)
 
 
-class ScoreFlow(Flow):
+class ScoreFlow(BasicFlow):
     def __init__(self, score_rule):
         super(ScoreFlow, self).__init__()
         conditional_flow = ConditionalFlow(score_rule.json_decode_rule_list, score_rule.derive_var_gen_rule_list)

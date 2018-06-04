@@ -1,6 +1,3 @@
-from component import VarGenComponent
-
-
 class JsonDecodeRule(object):
     def __init__(self, name, rule, data_type, default_val=None):
         self.name = name
@@ -22,12 +19,6 @@ class JsonDecodeRule(object):
                 return val
         else:
             return self.default_val
-
-
-class VarGenRule(object):
-    def __init__(self, name, rule):
-        self.name = name
-        self.rule = rule
 
 
 class ConditionalRule(object):
@@ -91,8 +82,4 @@ class ScoreRule(Rule):
         engine.register_score_rule(self)
 
 
-def var_gen_rules_to_var_gen_comp(var_gen_rules):
-    comp = VarGenComponent()
-    for var_gen_rule in var_gen_rules:
-        comp.add_var(var_gen_rule.name, var_gen_rule.rule)
-    return comp
+

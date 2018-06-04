@@ -36,7 +36,7 @@ engine.register_main_flow(main_flow)
 # 5. config var gen component
 cur_comp = VarGenComponent()
 main_flow.head_component = cur_comp
-cur_comp.add_var('rules_hit', [])
+cur_comp.add_var_rule(VarGenRule('rules_hit', []))
 
 # 6. link policy
 cur_comp.link(SubFlowComponent(PolicyFlow(engine.policy_dict['R01']), ['rules_hit']))
