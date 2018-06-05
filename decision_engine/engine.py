@@ -1,31 +1,59 @@
 from decision_engine.flow import Flow
-from decision_engine.meta_rule import Policy, ScoreRule
 import json
 
 
 class Engine(object):
-    def __init__(self):
+    def __init__(self, name, main_flow=None):
         self.policy_dict = {}
         self.score_rule_dict = {}
-        self.main_flow = None
+        self._main_flow = None  # Type Flow
+        self._output_vars = []  # Type list
+        self._input_vars = []  # Type list
+        if main_flow is not None:
+            self.main_flow = main_flow
+        self._name = name
+        self._namespace = None
 
-    def register_policy(self, policy):
-        assert isinstance(policy, Policy)
-        assert policy.rule_id not in self.policy_dict, 'duplicate policy register: ' + policy.rule_id
-        self.policy_dict[policy.rule_id] = policy
+    @property
+    def name(self):
+        return self._name
 
-    def register_score_rule(self, score_rule):
-        assert isinstance(score_rule, ScoreRule)
-        assert score_rule.rule_id not in self.score_rule_dict, 'duplicate score_rule register: ' + score_rule.rule_id
-        self.score_rule_dict['score_rule.rule_id'] = score_rule
+    @property
+    def main_flow(self) -> Flow:
+        return self._main_flow
 
-    def register_main_flow(self, flow):
-        assert isinstance(flow, Flow)
-        assert self.main_flow is None
-        self.main_flow = flow
+    @main_flow.setter
+    def main_flow(self, main_flow):
+        assert isinstance(main_flow, Flow)
+        self._main_flow = main_flow
 
-    def run(self, stage, apply_json, output_var_list):
-        flow_result = self.main_flow.run(stage_list=stage, apply_dict=json.loads(apply_json))
-        result = {k: v for k, v in flow_result.items() if k in output_var_list}
-        return json.dumps(result)
+    @property
+    def output_vars(self):
+        return self._output_vars
 
+    @output_vars.setter
+    def output_vars(self, output_vars):
+        self._output_vars = output_vars
+
+    @property
+    def input_vars(self):
+        return self._output_vars
+
+    @input_vars.setter
+    def input_vars(self, input_vars):
+        self._input_vars = input_vars
+
+    def var_exist_check(self):
+        for var in self.input_vars:
+            if var not in self._namespace:
+                raise AttributeError
+
+    def result_parser(self, result: dict):
+        out_dict = {k: v for k, v in result.items() if k in self.output_vars}
+        return json.dumps(out_dict)
+
+    def run(self, namespace: dict) -> str:
+        self._namespace = namespace
+        self.main_flow.run(self._namespace)
+        result = self.main_flow.namespace
+        return self.result_parser(result)

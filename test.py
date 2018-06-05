@@ -1,5 +1,6 @@
 from decision_engine.component import *
 from decision_engine.flow import *
+from decision_engine.engine import Engine
 
 '''
 flow = BasicFlow()
@@ -43,17 +44,18 @@ comp_false.link(flow.end_node)
 
 sub_flow_comp = SubFlowComponent()
 sub_flow_comp.flow = flow
-sub_flow_comp.output_vars = ['result']
+sub_flow_comp.output_vars = ['result', 'age']
 flow = BasicFlow(input_vars=["age"])
 flow.start_node.link(sub_flow_comp)
 sub_flow_comp.link(flow.end_node)
 
+engine = Engine("test")
+engine.main_flow = flow
+engine.input_vars = ["age"]
+engine.output_vars = ["result", "age"]
 
-flow.run(namespace={"age": 20})
-print(flow.namespace)
-flow.run(namespace={"age": 50})
-print(flow.namespace)
-
+print(engine.run(namespace={"age": 20}))
+print(engine.run(namespace={"age": 50}))
 
 
 
