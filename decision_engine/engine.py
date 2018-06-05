@@ -1,5 +1,5 @@
-from flow import Flow
-from meta_rule import Policy, ScoreRule
+from decision_engine.flow import Flow
+from decision_engine.meta_rule import Policy, ScoreRule
 import json
 
 

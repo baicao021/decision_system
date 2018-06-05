@@ -25,13 +25,11 @@ class ConditionalRule(object):
     def __init__(self, rule, var_gen_rules):
         self.rule = rule
         self.var_gen_rules = var_gen_rules
-        self.var_comp = var_gen_rules_to_var_gen_comp(var_gen_rules)
 
 
 class DefaultRule(object):
     def __init__(self, var_gen_rules):
         self.var_gen_rules = var_gen_rules
-        self.var_comp = var_gen_rules_to_var_gen_comp(var_gen_rules)
 
 
 class Rule(object):

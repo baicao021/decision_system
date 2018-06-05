@@ -1,5 +1,5 @@
-from meta import *
-from meta_rule import VarGenRule
+from decision_engine.meta import *
+from decision_engine.data_class import VarGenRule
 
 
 class StartComponent(ZeroToOneComponent):
@@ -63,6 +63,7 @@ class ConditionalComponent(AnyToMultipleComponent):
 
     def pick_child(self):
         for rule, child in self.link_list:
+            a = rule(self.namespace)
             if rule(self.namespace):
                 return child
         return self.default_child
@@ -75,10 +76,10 @@ class BiConditionalComponent(ConditionalComponent):
 
 
 class VarGenComponent(AnyToOneComponent):
-    def __init__(self, var_gen_rules=list()):
+    def __init__(self, var_gen_rules=None):
         super(VarGenComponent, self).__init__()
         self.child_comp = None
-        self.var_gen_rules = var_gen_rules
+        self.var_gen_rules = var_gen_rules if var_gen_rules is not None else []
 
     def inner_run(self):
         for var_gen_rule in self.var_gen_rules:
@@ -96,7 +97,7 @@ class SubFlowComponent(AnyToOneComponent):
     def __init__(self, flow=None, output_vars=None):
         super(SubFlowComponent, self).__init__()
         if isinstance(flow, Flow):
-            self.flow = flow
+            self.flow = flow  # Type Flow
         else:
             raise Exception
         self.output_vars = output_vars
@@ -108,8 +109,9 @@ class SubFlowComponent(AnyToOneComponent):
     def set_output_vars(self, output_vars):
         self.output_vars = output_vars
 
-    def inner_run(self, **kwargs):
+    def inner_run(self):
         ns_cp = {k: v for k, v in self.namespace.items()}
-        result = self.flow.run(ns_cp)
+        self.flow.run(ns_cp)
         for var in self.output_vars:
-            self.namespace[var] = result[var]
+            self.namespace[var] = self.flow.namespace[var]
+
