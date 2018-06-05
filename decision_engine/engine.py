@@ -1,4 +1,4 @@
-from decision_engine.flow import Flow
+from decision_engine.flow import Flow, BasicFlow
 import json
 
 
@@ -11,6 +11,8 @@ class Engine(object):
         self._input_vars = []  # Type list
         if main_flow is not None:
             self.main_flow = main_flow
+        else:
+            self.main_flow = BasicFlow()
         self._name = name
         self._namespace = None
 

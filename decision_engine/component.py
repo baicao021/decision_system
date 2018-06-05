@@ -13,7 +13,7 @@ class StartComponent(ZeroToOneComponent):
 
     @input_vars.setter
     def input_vars(self, input_vars):
-        assert self.input_vars is None
+        assert self.input_vars is not None
         self._input_vars = input_vars
 
     def var_exist_check(self):

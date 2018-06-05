@@ -87,7 +87,7 @@ class Flow(metaclass=abc.ABCMeta):
         return self._after_run()
 
     @property
-    def start_node(self):
+    def start_node(self) -> ZeroToOneComponent:
         return self._start_node
 
     @property
