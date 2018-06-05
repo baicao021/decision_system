@@ -13,6 +13,7 @@ flow.run(namespace={"a": 1})
 print(flow.namespace)
 '''
 
+'''
 flow = BasicFlow(input_vars=["age"])
 cond = ConditionalComponent()
 flow.start_node.link(cond)
@@ -26,7 +27,7 @@ comp_true.link(flow.end_node)
 comp_false.link(flow.end_node)
 flow.run(namespace={"age": 20})
 print(flow.namespace)
-
+'''
 
 flow = BasicFlow(input_vars=["age"])
 cond = BiConditionalComponent()
@@ -39,8 +40,20 @@ cond.add_bi_rule_link(lambda ns: ns["age"] > 24, comp_true, comp_false)
 cond.default_child = comp_false
 comp_true.link(flow.end_node)
 comp_false.link(flow.end_node)
+
+sub_flow_comp = SubFlowComponent()
+sub_flow_comp.flow = flow
+sub_flow_comp.output_vars = ['result']
+flow = BasicFlow(input_vars=["age"])
+flow.start_node.link(sub_flow_comp)
+sub_flow_comp.link(flow.end_node)
+
+
 flow.run(namespace={"age": 20})
 print(flow.namespace)
 flow.run(namespace={"age": 50})
 print(flow.namespace)
+
+
+
 

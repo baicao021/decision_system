@@ -96,18 +96,30 @@ class VarGenComponent(AnyToOneComponent):
 class SubFlowComponent(AnyToOneComponent):
     def __init__(self, flow=None, output_vars=None):
         super(SubFlowComponent, self).__init__()
-        if isinstance(flow, Flow):
-            self.flow = flow  # Type Flow
-        else:
-            raise Exception
-        self.output_vars = output_vars
+        self._flow = None  # Type Flow
+        if flow is not None:
+            if isinstance(flow, Flow):
+                self._flow = flow
+            else:
+                raise Exception
+        self._output_vars = output_vars if output_vars is not None else []
 
-    def set_flow(self, flow):
+    @property
+    def flow(self):
+        return self._flow
+
+    @flow.setter
+    def flow(self, flow):
         assert isinstance(flow, Flow)
-        self.flow = flow
+        self._flow = flow
 
-    def set_output_vars(self, output_vars):
-        self.output_vars = output_vars
+    @property
+    def output_vars(self):
+        return self._output_vars
+
+    @output_vars.setter
+    def output_vars(self, output_vars):
+        self._output_vars = output_vars
 
     def inner_run(self):
         ns_cp = {k: v for k, v in self.namespace.items()}
