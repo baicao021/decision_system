@@ -1,11 +1,13 @@
 import abc
 from abc import *
+from typing import Callable, Any
+from decision_engine.data_class import NameSpace
 
 
 class Component(metaclass=abc.ABCMeta):
     def __init__(self):
-        self.namespace = None  # Type dict
-        self.child_comp = None  # Type Component
+        self.namespace = None  # type: NameSpace
+        self.child_comp = None  # type: Component
 
     def run(self, namespace):
         self.namespace = namespace
@@ -76,7 +78,7 @@ class AnyToMultipleComponent(Component):
 
 class Flow(metaclass=abc.ABCMeta):
     def __init__(self):
-        self._start_node = self._init_start_node()  # Type ZeroToOneComponent
+        self._start_node = self._init_start_node()  # type: ZeroToOneComponent
         self._end_node = self._init_end_node()
         self._namespace = None
 
@@ -118,3 +120,4 @@ class Flow(metaclass=abc.ABCMeta):
     @abstractmethod
     def _after_run(self):
         return
+
