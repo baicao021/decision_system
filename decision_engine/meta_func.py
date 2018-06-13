@@ -1,25 +1,65 @@
-import decision_engine.data_class as data_class
-from typing import Callable, Any, List, overload, Sequence, Mapping
+import decision_engine.basic_data_class as basic_data_class
+from typing import Callable, Any, List, overload, Mapping, Union, Dict
 from abc import ABCMeta, abstractmethod
 
-NameSpace = data_class.NameSpace
+NameSpace = Dict[str, basic_data_class.Val]
 AtomFunc = Callable[[NameSpace], Any]
 
 
+@overload
+def auto_parser(val: int) -> 'IntFunc':
+    pass
+
+
+@overload
+def auto_parser(val: float) -> 'FloatFunc':
+    pass
+
+
+@overload
+def auto_parser(val: str) -> 'StrFunc':
+    pass
+
+
+@overload
+def auto_parser(val: bool) -> 'BoolFunc':
+    pass
+
+
+def auto_parser(val: Union[int, float, str, bool]):
+    p = {
+        int: IntFunc,
+        float: FloatFunc,
+        str: StrFunc,
+        bool: BoolFunc
+    }.get(type(val))
+    if p is not None:
+        return p(val=val)
+    raise TypeError
+
+
+def auto_parser_dec(func):
+    def operation(*args):
+        args = [obj if isinstance(obj, MetaFunc) else auto_parser(obj) for obj in args]
+        return func(*args)
+    return operation
+
+
 class MetaFunc(metaclass=ABCMeta):
-    def __init__(self, name: str = None, val: Any = None, func: AtomFunc= None, input_vars: Mapping[str, type] = None):
-        self._input_vars = {}
+    def __init__(self, name: str = None, val: Any = None, func: AtomFunc= None,
+                 input_vars: Mapping[str, type] = None) -> None:
+        self._input_vars = {}  # type: Mapping[str, type]
 
         if name is not None:
             self._input_vars = {
                 name: self.data_type
             }
-            self._func = lambda ns: ns[name].val
+            self._func = lambda ns: ns[name]
         elif val is not None:
             self._func = lambda ns: val
         elif func is not None:
             self._func = func  # type: AtomFunc
-            self._input_vars = input_vars  # type: Mapping[str, type]
+            self._input_vars = input_vars
         else:
             raise TypeError
 
@@ -27,7 +67,7 @@ class MetaFunc(metaclass=ABCMeta):
         return self.func(namespace)
 
     @property
-    def input_vars(self) -> NameSpace:
+    def input_vars(self) -> Mapping[str, type]:
         return self._input_vars
 
     @property
@@ -39,15 +79,14 @@ class MetaFunc(metaclass=ABCMeta):
     def data_type(self) -> type:
         pass
 
-    def _union_input_vars(self, other: 'MetaFunc'):
-        ns_s = self.input_vars
-        ns_o = other.input_vars
-        ns_r = {k: v for k, v in ns_s.items()}
-        for k, v in ns_o.items():
-            if k in ns_s:
-                assert v == ns_s[k]
-            else:
-                ns_r[k] = v
+    def union_input_vars(*other: 'MetaFunc'):
+        ns_r = {}
+        for meta_func in other:
+            for k, v in meta_func.input_vars.items():
+                if k in ns_r:
+                    assert ns_r[k] == v
+                else:
+                    ns_r[k] = v
         return ns_r
 
     @abstractmethod
@@ -59,16 +98,16 @@ class MetaFunc(metaclass=ABCMeta):
         pass
 
     def __le__(self, other):
-        return self.__lt__(other).l_or(self.__eq__(other))
+        return self.__lt__(other).or_(self.__eq__(other))
 
     def __ne__(self, other):
-        return self.__eq__(other).l_not()
+        return self.__eq__(other).not_()
 
     def __gt__(self, other):
-        return self.__le__(other).l_not()
+        return self.__le__(other).not_()
 
     def __ge__(self, other):
-        return self.__lt__(other).l_not()
+        return self.__lt__(other).not_()
 
 
 class IntFunc(MetaFunc):
@@ -86,112 +125,88 @@ class IntFunc(MetaFunc):
             func=lambda ns: -self.func(ns)
         )
 
-    def __float__(self):
+    def to_float(self):
         return FloatFunc(
             input_vars=self.input_vars,
             func=lambda ns: float(self.func(ns))
         )
 
-    def __str__(self):
+    def to_str(self):
         return StrFunc(
             input_vars=self.input_vars,
             func=lambda ns: str(self.func(ns))
         )
 
+    @overload
+    def __add__(self, other: 'IntFunc') -> 'IntFunc':
+        pass
+
+    @overload
+    def __add__(self, other: 'FloatFunc') -> 'FloatFunc':
+        pass
+
+    @auto_parser_dec
     def __add__(self, other):
-        if isinstance(other, int):
-            return IntFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) + other
-            )
-        if isinstance(other, IntFunc):
-            return IntFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+        f = {
+            IntFunc: IntFunc,
+            FloatFunc: FloatFunc
+        }.get(type(other))
+        if f is not None:
+            return f(
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) + other.func(ns)
             )
-        if isinstance(other, float):
-            return self.__float__() + other
-        if isinstance(other, FloatFunc):
-            return self.__float__() + other
         raise TypeError
 
     def __radd__(self, other):
         return self.__add__(other)
 
+    @auto_parser_dec
     def __sub__(self, other):
-        if isinstance(other, int):
-            return IntFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) - other
-            )
-        if isinstance(other, float):
-            return FloatFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) - other
-            )
-        if isinstance(other, IntFunc):
-            return IntFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
-                func=lambda ns: self.func(ns) - other.func(ns)
-            )
+        return self.__add__(other.__neg__())
 
+    @auto_parser_dec
     def __rsub__(self, other):
-        return self.__sub__(other).__neg__()
+        return other + self.__neg__()
 
+    @auto_parser_dec
     def __mul__(self, other):
-        if isinstance(other, int):
-            return IntFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) * other
-            )
-        if isinstance(other, IntFunc):
-            return IntFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+        f = {
+            IntFunc: IntFunc,
+            FloatFunc: FloatFunc
+        }.get(type(other))
+        if f is not None:
+            return f(
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) * other.func(ns)
             )
-        if isinstance(other, float):
-            return self.__float__() * other
-        if isinstance(other, FloatFunc):
-            return self.__float__() * other
         raise TypeError
 
     def __rmul__(self, other):
         return self.__mul__(other)
 
     def __truediv__(self, other):
-        return self.__float__() / other
+        return self.to_float() / other
 
     def __rtruediv__(self, other):
-        return other / self.__float__()
+        return other / self.to_float()
 
+    @auto_parser_dec
     def __lt__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if isinstance(other, IntFunc) or isinstance(other, FloatFunc):
             return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) < other
-            )
-        if isinstance(other, IntFunc):
-            return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) < other.func(ns)
             )
-        if isinstance(other, FloatFunc):
-            return self.__float__() < other
         raise TypeError
 
+    @auto_parser_dec
     def __eq__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if isinstance(other, IntFunc) or isinstance(other, FloatFunc):
             return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) == other
-            )
-        if isinstance(other, IntFunc):
-            return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) == other.func(ns)
             )
-        if isinstance(other, FloatFunc):
-            return self.__float__() == other
         raise TypeError
 
 
@@ -204,31 +219,29 @@ class FloatFunc(MetaFunc):
     def data_type(self):
         return float
 
-    def __str__(self):
+    def to_str(self):
         return StrFunc(
             input_vars=self.input_vars,
             func=lambda ns: str(self.func(ns))
         )
 
     def __neg__(self):
-        self._func = lambda ns: 0 - self.func(ns)
-        return self
+        return FloatFunc(
+            input_vars=self.input_vars,
+            func=lambda ns: -self.func(ns)
+        )
 
-    def __int__(self):
+    def to_int(self):
         return IntFunc(
             input_vars=self.input_vars,
             func=lambda ns: int(self.func(ns))
         )
 
+    @auto_parser_dec
     def __add__(self, other):
-        if isinstance(other, float) or isinstance(other, int):
-            return FloatFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) + other
-            )
         if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
-            return IntFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+            return FloatFunc(
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) + other.func(ns)
             )
         raise TypeError("%s, %s" % (type(self), type(other)))
@@ -236,31 +249,23 @@ class FloatFunc(MetaFunc):
     def __radd__(self, other):
         return self.__add__(other)
 
+    @auto_parser_dec
     def __sub__(self, other):
-        if isinstance(other, float) or isinstance(other, int):
+        if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
             return FloatFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) - other
-            )
-        if isinstance(other, FloatFunc):
-            return FloatFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) - other.func(ns)
             )
         raise TypeError
 
     def __rsub__(self, other):
-        return self.__rsub__(other).__neg__()
+        return self.__sub__(other).__neg__()
 
+    @auto_parser_dec
     def __mul__(self, other):
-        if isinstance(other, float) or isinstance(other, int):
+        if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
             return FloatFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) * other
-            )
-        if isinstance(other, FloatFunc):
-            return FloatFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) * other.func(ns)
             )
         raise TypeError
@@ -268,56 +273,38 @@ class FloatFunc(MetaFunc):
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    @auto_parser_dec
     def __truediv__(self, other):
-        if isinstance(other, float) or isinstance(other, int):
-            return FloatFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) / other
-            )
-
         if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
             return FloatFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) / other.func(ns)
             )
         raise TypeError
 
+    @auto_parser_dec
     def __rtruediv__(self, other):
-        if isinstance(other, float) or isinstance(other, int):
+        if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
             return FloatFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: other / self.func(ns)
-            )
-
-        if isinstance(other, FloatFunc):
-            return FloatFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: other.func(ns) / self.func(ns)
             )
         raise TypeError
 
+    @auto_parser_dec
     def __lt__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
             return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) < other
-            )
-        if isinstance(other, FloatFunc):
-            return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) < other.func(ns)
             )
         raise TypeError
 
+    @auto_parser_dec
     def __eq__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if isinstance(other, FloatFunc) or isinstance(other, IntFunc):
             return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) == other
-            )
-        if isinstance(other, FloatFunc):
-            return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) == other.func(ns)
             )
         raise TypeError
@@ -332,41 +319,29 @@ class StrFunc(MetaFunc):
     def data_type(self):
         return str
 
+    @auto_parser_dec
     def __add__(self, other):
-        if isinstance(other, str):
-            return StrFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) + other
-            )
         if isinstance(other, StrFunc):
             return StrFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) + other.func(ns)
             )
         raise TypeError
 
+    @auto_parser_dec
     def __lt__(self, other):
-        if isinstance(other, str):
-            return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) < other
-            )
         if isinstance(other, StrFunc):
             return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) < other.func(ns)
             )
         raise TypeError
 
+    @auto_parser_dec
     def __eq__(self, other):
-        if isinstance(other, str):
-            return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) == other
-            )
         if isinstance(other, StrFunc):
             return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) == other.func(ns)
             )
         raise TypeError
@@ -381,50 +356,47 @@ class BoolFunc(MetaFunc):
     def data_type(self):
         return bool
 
-    def __bool__(self):
-        return 123
-
+    @auto_parser_dec
     def __lt__(self, other):
-        raise TypeError
-
-    def __eq__(self, other):
-        if isinstance(other, bool):
-            return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: self.func(ns) == other
-            )
         if isinstance(other, BoolFunc):
             return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
+                func=lambda ns: self.func(ns) < other.func(ns)
+            )
+        raise TypeError
+
+    @auto_parser_dec
+    def __eq__(self, other):
+        if isinstance(other, BoolFunc):
+            return BoolFunc(
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) == other.func(ns)
             )
         raise TypeError
 
-    def l_and(self, other):
-        if isinstance(other, bool):
-            self._func = lambda ns: self.func(ns) and other
-            return self
+    @auto_parser_dec
+    def and_(self, other):
         if isinstance(other, BoolFunc):
             return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) and other.func(ns)
             )
         raise TypeError
 
-    def l_or(self, other):
-        if isinstance(other, bool):
-            self._func = lambda ns: self.func(ns) or other
-            return self
+    @auto_parser_dec
+    def or_(self, other):
         if isinstance(other, BoolFunc):
             return BoolFunc(
-                input_vars=MetaFunc._union_input_vars(self, other),
+                input_vars=MetaFunc.union_input_vars(self, other),
                 func=lambda ns: self.func(ns) or other.func(ns)
             )
         raise TypeError
 
-    def l_not(self):
-        self._func = lambda ns: not self.func(ns)
-        return self
+    def not_(self):
+        return BoolFunc(
+            input_vars=self.input_vars,
+            func=lambda ns: not self.func(ns)
+        )
 
 
 class ArrFunc(MetaFunc, metaclass=ABCMeta):
@@ -434,28 +406,18 @@ class ArrFunc(MetaFunc, metaclass=ABCMeta):
     def __eq__(self, other):
         raise TypeError
 
-    def have(self, item: MetaFunc or type):
-        if isinstance(item, self.data_type.ele_type()):
+    @auto_parser_dec
+    def have(self, item):
+        if item.data_type == self.data_type.ele_type():
             return BoolFunc(
-                input_vars=self.input_vars,
-                func=lambda ns: item in self.func(ns)
+                    input_vars=MetaFunc.union_input_vars(self, item),
+                    func=lambda ns: item.func(ns) in self.func(ns)
             )
-
-        if isinstance(item, MetaFunc):
-            if item.data_type == self.data_type.ele_type():
-                a = BoolFunc(
-                        input_vars=MetaFunc._union_input_vars(self, item),
-                        func=lambda ns: item.func(ns) in self.func(ns)
-                )
-                return BoolFunc(
-                        input_vars=MetaFunc._union_input_vars(self, item),
-                        func=lambda ns: item.func(ns) in self.func(ns)
-                )
         raise TypeError
 
     @property
     @abstractmethod
-    def data_type(self) -> data_class.ArrList:
+    def data_type(self) -> basic_data_class.ArrList:
         pass
 
 
@@ -466,7 +428,7 @@ class ArrIntFunc(ArrFunc):
 
     @property
     def data_type(self):
-        return data_class.ArrInt
+        return basic_data_class.ArrInt
 
 
 class ArrFloatFunc(ArrFunc):
@@ -476,7 +438,7 @@ class ArrFloatFunc(ArrFunc):
 
     @property
     def data_type(self):
-        return data_class.ArrFloat
+        return basic_data_class.ArrFloat
 
 
 class ArrStrFunc(ArrFunc):
@@ -486,7 +448,7 @@ class ArrStrFunc(ArrFunc):
 
     @property
     def data_type(self):
-        return data_class.ArrStr
+        return basic_data_class.ArrStr
 
 
 class ArrBoolFunc(ArrFunc):
@@ -496,38 +458,13 @@ class ArrBoolFunc(ArrFunc):
 
     @property
     def data_type(self):
-        return data_class.ArrBool
+        return basic_data_class.ArrBool
 
 
-@overload
-def arr_parser(val: Sequence[int], ele_type: type) -> ArrIntFunc:
-    pass
-
-
-@overload
-def arr_parser(val: Sequence[float], ele_type: type) -> ArrFloatFunc:
-    pass
-
-
-@overload
-def arr_parser(val: Sequence[str], ele_type: type) -> ArrStrFunc:
-    pass
-
-
-def arr_parser(val: Sequence[Any], ele_type: type):
-    for v in val:
-        assert isinstance(v, ele_type)
-
-    assert ele_type in (int, str, float)
-    if ele_type == int:
-        return ArrIntFunc(
-            func=lambda ns: val
-        )
-    elif ele_type == float:
-        return ArrFloatFunc(
-            func=lambda ns: val
-        )
-    elif ele_type == str:
-        return ArrStrFunc(
-            func=lambda ns: val
-        )
+@auto_parser_dec
+def cond_func(cond, true_func, false_func):
+    assert type(true_func) == type(false_func)
+    return type(true_func)(
+        input_vars=MetaFunc.union_input_vars(cond, true_func, false_func),
+        func=lambda ns: true_func(ns) if cond(ns) else false_func(ns)
+    )

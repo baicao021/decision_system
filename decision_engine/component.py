@@ -1,5 +1,6 @@
 from decision_engine.meta import *
 from decision_engine.data_class import VarGenRule
+from decision_engine.basic_data_class import Val
 
 
 class StartComponent(ZeroToOneComponent):
@@ -62,16 +63,15 @@ class ConditionalComponent(AnyToMultipleComponent):
         self._default_child = child_comp
 
     def pick_child(self):
-        for rule, child in self.link_list:
-            a = rule(self.namespace)
-            if rule(self.namespace):
+        for cond_rule, child in self.link_list:
+            if cond_rule(self.namespace):
                 return child
         return self.default_child
 
 
 class BiConditionalComponent(ConditionalComponent):
-    def add_bi_rule_link(self, rule, true_comp, false_true_comp):
-        self.add_cond_link(rule, true_comp)
+    def add_bi_rule_link(self, cond_rule, true_comp, false_true_comp):
+        self.add_cond_link(cond_rule, true_comp)
         self.default_child = false_true_comp
 
 
@@ -83,12 +83,9 @@ class VarGenComponent(AnyToOneComponent):
 
     def inner_run(self):
         for var_gen_rule in self.var_gen_rules:
-            if type(var_gen_rule.rule).__name__ == 'function':
-                self.namespace[var_gen_rule.name] = var_gen_rule.rule(self.namespace)
-            else:
-                self.namespace[var_gen_rule.name] = var_gen_rule.rule
+            self.namespace[var_gen_rule.name] = var_gen_rule.rule(self.namespace)
 
-    def add_var_rule(self, var_gen_rule):
+    def add_var_rule(self, var_gen_rule: VarGenRule):
         assert isinstance(var_gen_rule, VarGenRule)
         self.var_gen_rules.append(var_gen_rule)
 

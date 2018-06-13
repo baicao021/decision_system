@@ -1,14 +1,19 @@
 # 载入开发的模块
-from decision_engine.engine import Engine
+import decision_engine.engine as engine
 from decision_engine.flow import BasicFlow
 from decision_engine.component import ConditionalComponent, VarGenComponent, BiConditionalComponent
 from decision_engine.data_class import VarGenRule
+from decision_engine.meta_func import IntFunc, BoolFunc, StrFunc, ArrStrFunc
 
 # 初始化引擎，并给一个名字。等价于vincio新建一个project
-engine = Engine(name="Pikachu wanna play outside!")
+engine = engine.Engine(name="Pikachu wanna play outside!")
 
 # engine预设入参检查，目前有简单的实现，确认变量是否存在
-engine.input_vars = ['weather', 'time', 'mood']
+engine.input_vars = {
+    'weather': str,
+    'time': int,
+    'mood': int,
+}
 
 # 引擎初始化会带一个默认flow，后续可以替换，不过一般没有必要。等价于鼠标选中了Main flow
 flow = engine.main_flow
@@ -17,7 +22,11 @@ flow = engine.main_flow
 cur_comp = flow.start_node
 
 # flow的开始节点也有入参检查
-cur_comp.input_vars = ['weather', 'time', 'mood']
+cur_comp.input_vars = {
+    'weather': str,
+    'time': int,
+    'mood': int,
+}
 
 # 创建一个条件分支组件
 cond_comp = ConditionalComponent()
@@ -33,13 +42,13 @@ var_false = VarGenComponent()
 var_true.add_var_rule(VarGenRule("result", True))
 
 # 这是一个计算公式，动态计算，并创建或者覆盖一个变量
-var_true.add_var_rule(VarGenRule("mood", lambda ns: ns["mood"] + 1))
+var_true.add_var_rule(VarGenRule("mood", IntFunc("mood") + 1))
 
 var_false.add_var_rule(VarGenRule("result", True))
-var_false.add_var_rule(VarGenRule("mood", lambda ns: ns["mood"] - 1))
+var_false.add_var_rule(VarGenRule("mood", IntFunc("mood") - 1))
 
 # 把条件组件和一个变量生成组件链接在一起，入参为（规则表达式，组件）
-cond_comp.add_cond_link(lambda ns: ns["weather"] in ["Sunny", "Thunderstorm"], var_true)
+cond_comp.add_cond_link(ArrStrFunc(val=["Sunny", "Thunderstorm"]).have(StrFunc("weather")), var_true)
 
 # 条件组件会遵循条件添加的顺序依次判断，一旦表达式为真则选择相应组件为下游
 # 此外，Else的组件作为默认组件需要明确指定，如下一行所示
@@ -59,16 +68,16 @@ cur_comp.link(cond_comp)
 
 # 可以使用这种方式快速创建变量生成组件，后续可以把常见的运算进行包装，进一步简化
 var_true = VarGenComponent([
-    VarGenRule('result', lambda ns: ns["result"] and True),
-    VarGenRule('mood', lambda ns: ns["mood"] + 1),
+    VarGenRule('result', BoolFunc("result").and_(True)),
+    VarGenRule('mood', IntFunc("mood") + 1),
 ])
 var_false = VarGenComponent([
-    VarGenRule('result', lambda ns: ns["result"] and False),
-    VarGenRule('mood', lambda ns: ns["mood"] - 1),
+    VarGenRule('result', BoolFunc("result").and_(False)),
+    VarGenRule('mood', IntFunc("mood") - 1),
 ])
 
 # 看起来就像Excel 里的If函数
-cond_comp.add_bi_rule_link(lambda ns: ns["time"] <= 18, var_true, var_false)
+cond_comp.add_bi_rule_link(IntFunc("time") <= 18, var_true, var_false)
 
 # 让我们结束flow
 var_true.link(flow.end_node)

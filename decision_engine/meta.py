@@ -1,12 +1,10 @@
 import abc
 from abc import *
-from typing import Callable, Any
-from decision_engine.data_class import NameSpace
 
 
 class Component(metaclass=abc.ABCMeta):
     def __init__(self):
-        self.namespace = None  # type: NameSpace
+        self.namespace = None
         self.child_comp = None  # type: Component
 
     def run(self, namespace):

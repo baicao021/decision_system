@@ -1,4 +1,5 @@
 from decision_engine.flow import Flow, BasicFlow
+from typing import Mapping
 import json
 
 
@@ -42,7 +43,7 @@ class Engine(object):
         return self._output_vars
 
     @input_vars.setter
-    def input_vars(self, input_vars):
+    def input_vars(self, input_vars: Mapping[str, type]):
         self._input_vars = input_vars
 
     def var_exist_check(self):
